@@ -1,0 +1,1895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Raahi — Your Signal Reaches Help</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Leaflet (OpenStreetMap map rendering) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<style>
+  :root {
+    --bg: #0B1220;
+    --surface: #131B2E;
+    --surface-raised: #1B2540;
+    --surface-glass: rgba(27, 37, 64, 0.55);
+    --border: #232E4A;
+    --border-soft: rgba(255,255,255,0.06);
+    --text: #EDEFF4;
+    --muted: #8891A6;
+    --muted-faint: #5B6478;
+    --alert: #FF4757;
+    --alert-dim: #3A1620;
+    --success: #2ED573;
+    --success-dim: #0F2E1E;
+    --accent: #8B7CF6;
+    --accent-dim: rgba(139, 124, 246, 0.14);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+  }
+
+  .display { font-family: 'Space Grotesk', sans-serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ---------------- Ambient background ---------------- */
+  .aurora {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(70px);
+    opacity: 0.35;
+    will-change: transform;
+  }
+  .blob-1 {
+    width: 60vw; height: 60vw; max-width: 480px; max-height: 480px;
+    top: -15%; left: -10%;
+    background: radial-gradient(circle, #2A3F7A 0%, transparent 70%);
+    animation: drift1 22s ease-in-out infinite;
+  }
+  .blob-2 {
+    width: 50vw; height: 50vw; max-width: 420px; max-height: 420px;
+    bottom: -10%; right: -15%;
+    background: radial-gradient(circle, #7A2A3F 0%, transparent 70%);
+    animation: drift2 26s ease-in-out infinite;
+  }
+  .blob-3 {
+    width: 44vw; height: 44vw; max-width: 380px; max-height: 380px;
+    top: 35%; left: 50%;
+    background: radial-gradient(circle, #4A3B8A 0%, transparent 70%);
+    animation: drift3 30s ease-in-out infinite;
+    opacity: 0.28;
+  }
+  @keyframes drift3 {
+    0%, 100% { transform: translate(-50%, 0) scale(1); }
+    50% { transform: translate(-50%, -8%) scale(1.12); }
+  }
+  @keyframes drift1 {
+    0%, 100% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(6%, 8%) scale(1.1); }
+  }
+  @keyframes drift2 {
+    0%, 100% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(-5%, -6%) scale(1.08); }
+  }
+
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .blob { animation: none !important; }
+  }
+
+  /* ---------------- App shell ---------------- */
+  .app {
+    position: relative;
+    z-index: 2;
+    width: min(30rem, 100vw);
+    max-width: 30rem;
+    margin: 0 auto;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------------- Desktop / wide-screen presentation ---------------- */
+  .brand-panel { display: none; }
+  .desktop-shell { display: contents; }
+
+  @media (min-width: 1180px) {
+    body { display: flex; align-items: center; justify-content: center; }
+
+    .desktop-shell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3.25rem;
+    }
+
+    .app {
+      height: min(46rem, 90vh);
+      border: 1px solid var(--border);
+      border-radius: 1.75rem;
+      overflow: hidden;
+      box-shadow: 0 50px 100px -30px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.03);
+      background: rgba(19, 27, 46, 0.35);
+      backdrop-filter: blur(20px);
+      flex-shrink: 0;
+    }
+
+    .brand-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1.6rem;
+      width: 22rem;
+      flex-shrink: 0;
+    }
+
+    .brand-panel .mark {
+      width: 52px; height: 52px;
+      border-radius: 1rem;
+      background: linear-gradient(135deg, var(--accent-dim), rgba(255,71,87,0.12));
+      border: 1px solid var(--border-soft);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 0.4rem;
+    }
+
+    .brand-panel h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 2.3rem;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      margin: 0;
+      color: var(--text);
+    }
+
+    .brand-panel p.lead {
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.55;
+      margin: 0;
+      max-width: 20rem;
+    }
+
+    .brand-panel .feature-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      margin-top: 0.5rem;
+    }
+
+    .brand-panel .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .brand-panel .feature-item svg { flex-shrink: 0; color: var(--accent); }
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.35rem 1.35rem 1rem;
+    flex-shrink: 0;
+  }
+
+  .brand { display: flex; align-items: center; gap: 0.55rem; }
+
+  .brand span {
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    text-transform: uppercase;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 9999px;
+    background: var(--surface-glass);
+    border: 1px solid var(--border-soft);
+    backdrop-filter: blur(12px);
+  }
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 9999px;
+    background: var(--success);
+    box-shadow: 0 0 0 3px var(--success-dim);
+    position: relative;
+  }
+  .status-dot::after {
+    content: '';
+    position: absolute; inset: -3px;
+    border-radius: 9999px;
+    border: 1px solid var(--success);
+    animation: statusPulse 2.4s ease-out infinite;
+  }
+  @keyframes statusPulse {
+    0% { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+
+  .chat-fade-top {
+    position: sticky;
+    top: 0;
+    height: 22px;
+    margin-bottom: -22px;
+    background: linear-gradient(to bottom, rgba(11,18,32,0.95), rgba(11,18,32,0));
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .bubble-row { display: flex; align-items: flex-end; gap: 0.5rem; animation: bubblePop 0.4s cubic-bezier(.2,.9,.3,1.2) both; }
+  @keyframes bubblePop {
+    from { opacity: 0; transform: translateY(10px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .agent-avatar {
+    width: 26px; height: 26px; border-radius: 9999px;
+    background: linear-gradient(135deg, var(--accent-dim), var(--surface-raised));
+    border: 1px solid var(--border-soft);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-bottom: 2px;
+  }
+
+  .bubble-tick {
+    display: flex; justify-content: flex-end;
+    margin-top: 0.25rem; margin-right: 0.15rem;
+    color: var(--muted-faint); font-size: 0.68rem;
+    gap: 0.2rem; align-items: center;
+  }
+
+  .bubble .msg-label {
+    display: block;
+    margin-top: 0.85rem;
+    margin-bottom: 0.15rem;
+    font-weight: 600;
+    color: #FFB199;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+  }
+  .bubble .msg-label:first-child { margin-top: 0; }
+
+  .composer-field {
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .composer-field:focus-within {
+    border-color: rgba(255,71,87,0.5);
+    box-shadow: 0 0 0 3px rgba(255,71,87,0.12);
+  }
+  .status-pill span {
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+  }
+
+  /* ---------------- Chat ---------------- */
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    padding: 0.5rem 4.5rem 1rem 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    scrollbar-width: thin;
+  }
+  .chat-area::-webkit-scrollbar { width: 4px; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .bubble-row.from-user { justify-content: flex-end; }
+  .bubble-row.from-agent { justify-content: flex-start; }
+
+  .bubble {
+    max-width: 82%;
+    padding: 0.7rem 0.95rem;
+    border-radius: 1.1rem;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    backdrop-filter: blur(10px);
+  }
+  .bubble a { color: inherit; text-decoration: underline; }
+
+  .from-agent .bubble {
+    background: var(--surface-glass);
+    border: 1px solid var(--border-soft);
+    border-bottom-left-radius: 0.3rem;
+    color: var(--text);
+  }
+  .from-user .bubble {
+    background: linear-gradient(135deg, rgba(255,71,87,0.85), rgba(224,51,68,0.85));
+    border-bottom-right-radius: 0.3rem;
+    color: #fff;
+  }
+
+  .typing-dots { display: flex; gap: 0.25rem; padding: 0.2rem 0; }
+  .typing-dots span {
+    width: 6px; height: 6px; border-radius: 9999px;
+    background: var(--muted);
+    animation: typingBounce 1.2s ease-in-out infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  /* ---------------- Composer ---------------- */
+  .quick-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0 1.1rem 0.7rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .quick-actions::-webkit-scrollbar { display: none; }
+
+  .quick-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 0.5rem 0.9rem;
+    border-radius: 9999px;
+    background: var(--surface-glass);
+    border: 1px solid var(--border-soft);
+    backdrop-filter: blur(10px);
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.18s cubic-bezier(.2,.8,.3,1.2), border-color 0.15s ease, color 0.15s ease, box-shadow 0.18s ease;
+  }
+  .quick-chip:hover { color: var(--text); border-color: rgba(139,124,246,0.5); transform: translateY(-2px); box-shadow: 0 6px 16px -6px rgba(0,0,0,0.4); }
+  .quick-chip:active { transform: scale(0.96) translateY(0); }
+  .quick-chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+  .quick-chip-emergency {
+    color: #FFD1D6;
+    border-color: rgba(255,71,87,0.35);
+    background: rgba(255,71,87,0.1);
+  }
+  .quick-chip-emergency:hover {
+    color: #fff;
+    border-color: var(--alert);
+    background: rgba(255,71,87,0.18);
+  }
+  .composer {
+    flex-shrink: 0;
+    padding: 0.9rem 1.1rem calc(1.1rem + env(safe-area-inset-bottom));
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+  }
+  .composer-field {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: var(--surface-glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 9999px;
+    padding: 0.3rem 0.3rem 0.3rem 1.1rem;
+    backdrop-filter: blur(12px);
+  }
+  .composer-field input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.92rem;
+    padding: 0.55rem 0;
+  }
+  .composer-field input::placeholder { color: var(--muted-faint); }
+
+  .send-btn {
+    width: 38px; height: 38px;
+    border-radius: 9999px;
+    border: none;
+    background: var(--text);
+    color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .send-btn:active { transform: scale(0.92); }
+  .send-btn:disabled { opacity: 0.35; cursor: default; }
+  .send-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+
+  /* ---------------- Floating SOS ---------------- */
+  .fab {
+    position: absolute;
+    right: 1.35rem;
+    bottom: calc(10.5rem + env(safe-area-inset-bottom));
+    top: auto;
+    transform: none;
+    z-index: 25;
+    width: 58px; height: 58px;
+    border-radius: 9999px;
+    border: none;
+    cursor: pointer;
+    background: radial-gradient(circle at 35% 30%, #FF6B78 0%, var(--alert) 60%, #E03344 100%);
+    box-shadow: 0 10px 30px -8px rgba(255,71,87,0.55);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.15s ease;
+  }
+  .fab:hover { transform: scale(1.06); box-shadow: 0 14px 36px -8px rgba(255,71,87,0.65); }
+  .fab:active { transform: scale(0.93); }
+  .fab:focus-visible { outline: 2px solid var(--text); outline-offset: 4px; }
+  .fab-ring {
+    position: absolute;
+    inset: -6px;
+    border-radius: 9999px;
+    border: 1.5px solid var(--alert);
+    animation: fabPulse 2.6s ease-out infinite;
+  }
+  @keyframes fabPulse {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fab-ring { animation: none !important; }
+  }
+
+  .fab-confirm-label {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    right: 0;
+    white-space: nowrap;
+    background: var(--surface-raised);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.5rem 0.85rem;
+    border-radius: 0.65rem;
+    border: 1px solid var(--border-soft);
+    box-shadow: 0 10px 24px -8px rgba(0,0,0,0.55);
+    opacity: 0;
+    transform: translateY(4px);
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .fab-confirm-label::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 1.1rem;
+    border: 5px solid transparent;
+    border-top-color: var(--surface-raised);
+  }
+  .fab-confirm-label.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .fab.armed {
+    animation: fabArmedPulse 0.85s ease-in-out infinite;
+  }
+  @keyframes fabArmedPulse {
+    0%, 100% { box-shadow: 0 10px 30px -8px rgba(255,71,87,0.55); }
+    50% { box-shadow: 0 10px 42px -4px rgba(255,71,87,0.95); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fab.armed { animation: none !important; }
+  }
+
+  /* ---------------- Bottom sheet ---------------- */
+  .sheet-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(4,7,15,0.6);
+    backdrop-filter: blur(3px);
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .sheet-backdrop.active { opacity: 1; pointer-events: auto; }
+
+  .sheet {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 11;
+    max-width: 30rem;
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 1.5rem 1.5rem 0 0;
+    padding: 1.6rem 1.6rem calc(1.6rem + env(safe-area-inset-bottom));
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(.32,.72,0,1);
+    box-shadow: 0 -20px 60px -20px rgba(0,0,0,0.5);
+    max-height: 82vh;
+    overflow-y: auto;
+  }
+  .sheet.active { transform: translateY(0); }
+
+  .sheet-handle {
+    width: 36px; height: 4px;
+    border-radius: 9999px;
+    background: var(--border);
+    margin: 0 auto 1.4rem;
+  }
+
+  .sheet-screen { display: none; flex-direction: column; align-items: center; text-align: center; animation: fadeUp 0.4s ease both; }
+  .sheet-screen.active { display: flex; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  h1.headline { font-weight: 700; font-size: 1.55rem; line-height: 1.28; letter-spacing: -0.01em; margin: 0 0 0.5rem; }
+  .sub { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.5rem; max-width: 22rem; }
+
+  .rings-wrap { position: relative; width: 120px; height: 120px; margin: 0.5rem 0 1.75rem; }
+  .ring { position: absolute; inset: 0; border-radius: 9999px; border: 1.5px solid var(--alert); animation: pulse 2.2s ease-out infinite; }
+  .ring:nth-child(2) { animation-delay: 0.6s; }
+  .ring:nth-child(3) { animation-delay: 1.2s; }
+  @keyframes pulse { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(2.4); opacity: 0; } }
+  .rings-core {
+    position: absolute; inset: 0; margin: auto;
+    width: 56px; height: 56px; border-radius: 9999px;
+    background: var(--alert);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  h2.subtitle { font-weight: 600; font-size: 1.1rem; margin: 0; }
+  .muted-note { color: var(--muted); font-size: 0.88rem; margin-top: 0.4rem; }
+
+  .card { width: 100%; text-align: left; }
+  .card-badge-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.9rem; }
+  .badge-icon { width: 32px; height: 32px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .badge-label { color: var(--muted); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+  .card h2.title { font-weight: 700; font-size: 1.25rem; margin: 0 0 0.3rem; line-height: 1.3; }
+  .card p.desc { color: var(--muted); font-size: 0.86rem; margin: 0 0 1.1rem; }
+
+  .distance-chip {
+    display: inline-flex; align-items: baseline; gap: 0.35rem;
+    background: var(--surface-raised); padding: 0.35rem 0.7rem;
+    border-radius: 0.6rem; margin-bottom: 1.3rem;
+  }
+  .distance-chip .num { font-size: 1.05rem; font-weight: 500; }
+  .distance-chip .unit { font-size: 0.72rem; color: var(--muted); }
+
+  .btn-row { display: flex; flex-direction: column; gap: 0.65rem; width: 100%; }
+  .action-btn {
+    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    padding: 0.8rem; border-radius: 0.85rem; font-weight: 500; font-size: 0.9rem;
+    text-decoration: none; border: none; cursor: pointer;
+    transition: transform 0.15s cubic-bezier(.2,.8,.3,1.2), box-shadow 0.15s ease, filter 0.15s ease;
+  }
+  .action-btn:hover { transform: translateY(-2px); filter: brightness(1.08); }
+  .action-btn:active { transform: translateY(0) scale(0.98); }
+  .action-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+  .action-btn.secondary { background: var(--surface-raised); border: 1px solid var(--border); color: var(--text); }
+  .action-btn.primary { font-weight: 600; color: #fff; }
+  .action-btn.primary.success { background: var(--success); color: #06210F; }
+  .action-btn.primary.alertbg { background: var(--alert); }
+
+  .retry-link {
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    margin: 1.1rem auto 0; background: none; border: none;
+    color: var(--muted-faint); font-size: 0.8rem; cursor: pointer;
+  }
+
+  .error-icon-wrap {
+    width: 60px; height: 60px; border-radius: 9999px; background: var(--alert-dim);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 1.3rem;
+  }
+  .retry-btn {
+    margin-top: 1.6rem; display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.7rem 1.4rem; border-radius: 9999px; background: var(--surface-raised);
+    border: 1px solid var(--border); color: var(--text); font-size: 0.88rem;
+    font-weight: 500; cursor: pointer;
+  }
+  .retry-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+
+  .sheet-close {
+    position: absolute; top: 1.1rem; right: 1.1rem;
+    width: 30px; height: 30px; border-radius: 9999px;
+    background: var(--surface-raised); border: 1px solid var(--border);
+    color: var(--muted); display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+
+  svg { display: block; }
+
+  /* ---------------- Route map ---------------- */
+  .route-map-wrap {
+    position: relative;
+    width: 100%;
+    height: 17rem;
+    border-radius: 1.1rem;
+    overflow: hidden;
+    border: 1px solid var(--border-soft);
+    margin: 1rem 0 1.2rem;
+    background: var(--surface-raised);
+  }
+  #route-map { width: 100%; height: 100%; background: var(--surface-raised); }
+  .route-map-wrap .leaflet-control-attribution {
+    font-size: 0.6rem;
+    background: rgba(11,18,32,0.7) !important;
+    color: var(--muted) !important;
+  }
+  .route-map-wrap .leaflet-control-attribution a { color: var(--muted); }
+
+  .safety-circle {
+    position: absolute;
+    top: 0.7rem;
+    right: 0.7rem;
+    z-index: 1000;
+    width: 54px; height: 54px;
+    border-radius: 9999px;
+    background: rgba(11,18,32,0.88);
+    backdrop-filter: blur(8px);
+    border: 2px solid var(--border-soft);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 18px -4px rgba(0,0,0,0.5);
+    line-height: 1;
+  }
+  .safety-circle.visible { display: flex; }
+  .safety-circle .score { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.05rem; color: var(--text); }
+  .safety-circle .out-of { font-size: 0.52rem; color: var(--muted); margin-top: 0.15rem; letter-spacing: 0.02em; }
+  .safety-circle.tier-good { border-color: rgba(46,213,115,0.55); }
+  .safety-circle.tier-good .score { color: var(--success); }
+  .safety-circle.tier-mid { border-color: rgba(255,193,7,0.55); }
+  .safety-circle.tier-mid .score { color: #FFC107; }
+  .safety-circle.tier-low { border-color: rgba(255,71,87,0.55); }
+  .safety-circle.tier-low .score { color: var(--alert); }
+
+  .route-summary {
+    display: flex;
+    gap: 0.6rem;
+    justify-content: center;
+    margin-bottom: 0.2rem;
+  }
+  .route-summary .chip {
+    font-size: 0.76rem;
+    color: var(--muted);
+    background: var(--surface-glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 9999px;
+    padding: 0.3rem 0.7rem;
+  }
+
+  .trip-type-toggle {
+    display: flex;
+    justify-content: center;
+    gap: 0.3rem;
+    margin: 0.1rem 0 0.6rem;
+  }
+  .trip-type-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--surface-glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 9999px;
+    padding: 0.4rem 0.95rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .trip-type-btn:hover { color: var(--text); }
+  .trip-type-btn.active {
+    color: var(--bg);
+    background: var(--text);
+    border-color: var(--text);
+  }
+  .trip-type-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+  /* ---------------- Road Intelligence Drawer ---------------- */
+  #roadDrawerToggle {
+    position: fixed;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    width: 42px;
+    height: 90px;
+    border: 1px solid var(--border-soft);
+    border-right: none;
+    border-radius: 18px 0 0 18px;
+    background: var(--surface-raised);
+    color: var(--accent);
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.4);
+    transition: width 0.25s ease, background 0.25s ease, color 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #roadDrawerToggle:hover {
+    width: 50px;
+    background: var(--accent);
+    color: #fff;
+  }
+
+  #roadDrawer {
+    position: fixed;
+    top: 0;
+    right: -420px;
+    width: 400px;
+    max-width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    transition: right 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    z-index: 1000;
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+    color: var(--text);
+  }
+
+  #roadDrawer.active {
+    right: 0;
+  }
+
+  .roadHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 1.4rem;
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .roadHeader h2 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  #drawerClose {
+    font-size: 1.3rem;
+    cursor: pointer;
+    color: var(--muted);
+    transition: color 0.15s ease;
+  }
+
+  #drawerClose:hover {
+    color: var(--text);
+  }
+
+  .roadScore {
+    display: flex;
+    align-items: center;
+    padding: 1.2rem 1.4rem;
+    gap: 1.2rem;
+  }
+
+  .scoreCircle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-dim), var(--surface-raised));
+    border: 2px solid var(--accent);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .scoreCircle span {
+    font-size: 1.6rem;
+    font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
+    line-height: 1;
+  }
+
+  .scoreCircle small {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .scoreText h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--text);
+  }
+
+  .scoreText p {
+    margin: 0.3rem 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+
+  .roadCard {
+    margin: 0.8rem 1.4rem;
+    padding: 1rem 1.2rem;
+    border-radius: 1rem;
+    background: var(--surface-glass);
+    border: 1px solid var(--border-soft);
+    backdrop-filter: blur(10px);
+  }
+
+  .roadCard h4 {
+    margin: 0 0 0.75rem;
+    color: var(--accent);
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .infoRow {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 0.85rem;
+  }
+
+  .infoRow span { color: var(--muted); }
+  .infoRow strong { color: var(--text); }
+  .infoRow:last-child { border-bottom: none; }
+
+  @media(max-width:768px){
+    #roadDrawer { width: 100%; right: -100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="aurora">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+<svg class="grain" xmlns="http://www.w3.org/2000/svg">
+  <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/></filter>
+  <rect width="100%" height="100%" filter="url(#noise)"/>
+</svg>
+
+<div class="desktop-shell">
+<aside class="brand-panel">
+  <div class="mark">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EDEFF4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+  </div>
+  <h2>Your signal reaches help.</h2>
+  <p class="lead">Raahi is a companion for moments that can't wait — share your live location instantly, get the nearest police station, and loop in someone you trust, all in one tap.</p>
+  <div class="feature-list">
+    <div class="feature-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      Instant live location sharing
+    </div>
+    <div class="feature-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      Nearest police station lookup
+    </div>
+    <div class="feature-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      One-tap share to a trusted contact
+    </div>
+  </div>
+</aside>
+
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#EDEFF4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span>Raahi</span>
+    </div>
+    <div class="status-pill">
+      <span class="status-dot"></span>
+      <span>Protected</span>
+    </div>
+  </header>
+
+  <main class="chat-area" id="chat-log">
+    <div class="chat-fade-top"></div>
+  </main>
+
+  <div class="quick-actions">
+    <button type="button" class="quick-chip" data-text="Can you give me a detailed description of my route?">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+      Detailed route
+    </button>
+    <button type="button" class="quick-chip" data-text="Can you give me a quick overview of my trip?">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Trip overview
+    </button>
+    <button type="button" class="quick-chip quick-chip-emergency" data-text="I'm not safe" data-emergency="true">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Emergency
+    </button>
+  </div>
+
+  <form class="composer" id="composer-form">
+    <div class="composer-field">
+      <input type="text" id="chat-input" placeholder="Talk to Raahi…" autocomplete="off" />
+    </div>
+    <button type="submit" class="send-btn" id="send-btn" aria-label="Send message">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </form>
+
+  <button class="fab" id="fab-btn" aria-label="I'm not safe — share my location. Tap twice to send.">
+    <span class="fab-ring"></span>
+    <span class="fab-confirm-label" id="fab-confirm-label">Tap again to send SOS</span>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+  </button>
+</div>
+</div>
+
+<div class="sheet-backdrop" id="sheet-backdrop"></div>
+<div class="sheet" id="sheet">
+  <button class="sheet-close" id="sheet-close" aria-label="Close">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="sheet-handle"></div>
+
+  <!-- LOCATING -->
+  <section class="sheet-screen active" id="screen-locating">
+    <div class="rings-wrap">
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="rings-core">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.93 19.07a10 10 0 0 1 0-14.14M7.76 16.24a6 6 0 0 1 0-8.48m4.24 10.6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
+      </div>
+    </div>
+    <h2 class="subtitle display">Sending your signal</h2>
+    <p class="muted-note">Finding the nearest police station near you…</p>
+  </section>
+
+  <!-- RESULT -->
+  <section class="sheet-screen" id="screen-result">
+    <div class="card">
+      <div class="card-badge-row">
+        <div class="badge-icon" id="badge-icon-wrap">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <span class="badge-label" id="badge-label">Nearest station found</span>
+      </div>
+      <h2 class="title display" id="result-title">Station name</h2>
+      <p class="desc" id="result-desc">Description</p>
+      <div class="distance-chip" id="distance-chip" style="display:none;">
+        <span class="num mono" id="distance-value">0.0</span>
+        <span class="unit">km away</span>
+      </div>
+      <div class="btn-row">
+        <a class="action-btn secondary" id="maps-link" href="#" target="_blank" rel="noopener noreferrer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+          Open in Google Maps
+        </a>
+        <a class="action-btn primary" id="whatsapp-link" href="#" target="_blank" rel="noopener noreferrer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Share with a contact on WhatsApp
+        </a>
+      </div>
+    </div>
+    <button class="retry-link" id="search-again-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      Search again
+    </button>
+  </section>
+
+  <!-- ERROR -->
+  <section class="sheet-screen" id="screen-error">
+    <div class="error-icon-wrap">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FF4757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </div>
+    <h2 class="subtitle display">Something went wrong</h2>
+    <p class="muted-note" id="error-message">Error message here.</p>
+    <button class="retry-btn" id="retry-btn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      Try again
+    </button>
+  </section>
+
+  <!-- ROUTE LOCATING -->
+  <section class="sheet-screen" id="screen-route-locating">
+    <div class="rings-wrap">
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="rings-core">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      </div>
+    </div>
+    <h2 class="subtitle display">Mapping your route</h2>
+    <p class="muted-note" id="route-locating-note">Finding your location and the route…</p>
+  </section>
+
+  <!-- ROUTE MAP -->
+  <section class="sheet-screen" id="screen-route-map">
+    <h2 class="subtitle display">Route overview</h2>
+    <p class="muted-note" id="route-sub">Route to your destination.</p>
+    <div class="trip-type-toggle" role="group" aria-label="Trip type">
+      <button type="button" class="trip-type-btn active" id="trip-type-oneway" aria-pressed="true">One-way</button>
+      <button type="button" class="trip-type-btn" id="trip-type-roundtrip" aria-pressed="false">Round trip</button>
+    </div>
+    <div class="route-map-wrap">
+      <div id="route-map"></div>
+      <div class="safety-circle" id="safety-circle">
+        <span class="score" id="safety-score">–</span>
+        <span class="out-of">/10</span>
+      </div>
+    </div>
+    <div class="route-summary" id="route-summary" style="display:none;">
+      <span class="chip" id="route-distance-chip">– km</span>
+      <span class="chip" id="route-duration-chip">– min</span>
+    </div>
+    <p class="muted-note" id="best-time-note" style="display:none;"></p>
+    <div class="btn-row">
+      <a class="action-btn secondary" id="route-maps-link" href="#" target="_blank" rel="noopener noreferrer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        Open in Google Maps
+      </a>
+      <button class="action-btn primary" id="route-done-btn">Done</button>
+    </div>
+  </section>
+</div>
+
+<!-- ================= Road Intelligence Drawer ================= -->
+<button id="roadDrawerToggle" title="Road Intelligence" aria-label="Toggle Road Intelligence">❯</button>
+
+<div id="roadDrawer">
+  <div class="roadHeader">
+    <h2>🛡 Road Intelligence</h2>
+    <span id="drawerClose">✕</span>
+  </div>
+
+  <div class="roadScore">
+    <div class="scoreCircle">
+      <span id="routeScore">--</span>
+      <small>/10</small>
+    </div>
+    <div class="scoreText">
+      <h3>AI Route Score</h3>
+      <p id="routeReason">Waiting for destination...</p>
+    </div>
+  </div>
+
+  <div class="roadCard">
+    <h4>🌦 Weather</h4>
+    <div class="infoRow">
+      <span>Condition</span>
+      <strong id="weatherCondition">--</strong>
+    </div>
+    <div class="infoRow">
+      <span>Temperature</span>
+      <strong id="weatherTemp">--</strong>
+    </div>
+    <div class="infoRow">
+      <span>Rain Chance</span>
+      <strong id="rainChance">--</strong>
+    </div>
+    <div class="infoRow">
+      <span>Visibility</span>
+      <strong id="visibilityValue">--</strong>
+    </div>
+  </div>
+
+  <div class="roadCard">
+    <h4>🚦 Traffic</h4>
+    <div class="infoRow">
+      <span>Status</span>
+      <strong id="trafficStatusDrawer">--</strong>
+    </div>
+    <div class="infoRow">
+      <span>Delay</span>
+      <strong id="trafficDelayDrawer">--</strong>
+    </div>
+  </div>
+
+  <div class="roadCard">
+    <h4>🛣 Best Route</h4>
+    <p id="recommendedRoute">No destination selected.</p>
+  </div>
+
+  <div class="roadCard">
+    <h4>⏰ Best Departure</h4>
+    <strong id="bestDeparture">--</strong>
+  </div>
+</div>
+
+<script>
+  // =========================================================================
+  // CONFIG
+  // =========================================================================
+  const WEBHOOK_URL = "https://aditya260813.app.n8n.cloud/webhook/4e445912-d2e3-429b-a43c-4692da887939";
+  const CHAT_WEBHOOK_URL = "https://aditya260813.app.n8n.cloud/webhook/5936e7b6-8ad5-4a29-ab66-b1688ffd2996/chat";
+  const ROAD_INTEL_WEBHOOK_URL = "https://aditya260813.app.n8n.cloud/webhook/e623f81a-2324-46d4-81fa-8e71bd7a880b";
+  const MAPPLS_PROXY_URL = "https://aditya260813.app.n8n.cloud/webhook/92c26bd2-dacf-4356-a9ce-3f6b05242611";
+
+  const UNSAFE_PATTERNS = /\b(not safe|unsafe|help me|in danger|emergency|scared|follow(ed|ing) me|someone.?s following)\b/i;
+
+  const ROUTE_PATTERNS = [
+    /\b(?:route|directions?|way|path|navigate)\s+(?:to|for|towards?)\s+(.+)/i,
+    /\bhow (?:do|can) i get to\s+(.+)/i,
+    /\btake me to\s+(.+)/i,
+  ];
+
+  function extractRouteDestination(text) {
+    for (const pattern of ROUTE_PATTERNS) {
+      const match = text.match(pattern);
+      if (match && match[1] && match[1].trim().length > 1) {
+        return match[1]
+          .trim()
+          .replace(/[.?!]+$/, '')
+          .replace(/\s*(?:,\s*)?\b(round trip|round-trip|there and back|and back|return trip|round journey)\b\s*$/i, '')
+          .trim();
+      }
+    }
+    return null;
+  }
+
+  function extractSafetyScore(replyText) {
+    if (!replyText) return null;
+    const patterns = [
+      /(\d{1,2}(?:\.\d)?)\s*(?:\/|out of)\s*10\b/i,
+      /safety\s*(?:score|rating|level)?\s*(?:is|of|:|-|–)\s*(\d{1,2}(?:\.\d)?)\b/i,
+      /(?:rated|scored)\s*(?:as|at)?\s*(\d{1,2}(?:\.\d)?)\b/i,
+    ];
+    for (const pattern of patterns) {
+      const match = replyText.match(pattern);
+      if (match) {
+        const val = parseFloat(match[1]);
+        if (Number.isFinite(val) && val >= 0 && val <= 10) return val;
+      }
+    }
+    return null;
+  }
+
+  function extractBestTimeToTravel(replyText) {
+    if (!replyText) return null;
+    const patterns = [
+      /best time to travel\s*:?\s*\n?\s*(.+)/i,
+      /best time to (?:go|leave|depart|drive)\s*(?:is|:|-|–)\s*(.+)/i,
+    ];
+    for (const pattern of patterns) {
+      const match = replyText.match(pattern);
+      if (match && match[1]) {
+        return match[1].split(/\n/)[0].trim().replace(/[.?!]+$/, '');
+      }
+    }
+    return null;
+  }
+
+  // =========================================================================
+  // Chat
+  // =========================================================================
+  const chatLog = document.getElementById('chat-log');
+  const form = document.getElementById('composer-form');
+  const input = document.getElementById('chat-input');
+  const sendBtn = document.getElementById('send-btn');
+  const sessionId = 'raahi-' + Math.random().toString(36).slice(2);
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function formatAgentMessage(text) {
+    let out = escapeHtml(text);
+    out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/\n+/g, '<br>');
+    out = out.replace(/\s*•\s*/g, '<br>• ');
+    out = out.replace(
+      /(^|<br>|\.\s+)([A-Z][A-Za-z]+(?:\s[A-Z][A-Za-z]+){0,3}):\s/g,
+      (match, lead, label) => `${lead}<span class="msg-label">${label}</span>`
+    );
+    out = out.replace(/(<br>\s*){2,}/g, '<br>').replace(/^(<br>\s*)+/, '');
+    return out;
+  }
+
+  function addBubble(text, from) {
+    const row = document.createElement('div');
+    row.className = 'bubble-row from-' + from;
+
+    if (from === 'agent') {
+      const avatar = document.createElement('div');
+      avatar.className = 'agent-avatar';
+      avatar.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#EDEFF4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+      row.appendChild(avatar);
+    }
+
+    const wrap = document.createElement('div');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    if (from === 'agent') {
+      bubble.innerHTML = formatAgentMessage(text);
+    } else {
+      bubble.textContent = text;
+    }
+    wrap.appendChild(bubble);
+
+    if (from === 'user') {
+      const tick = document.createElement('div');
+      tick.className = 'bubble-tick';
+      tick.innerHTML = '<span>Sent</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      wrap.appendChild(tick);
+    }
+
+    row.appendChild(wrap);
+    chatLog.appendChild(row);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return bubble;
+  }
+
+  function addTyping() {
+    const row = document.createElement('div');
+    row.className = 'bubble-row from-agent';
+    row.id = 'typing-row';
+    const avatar = document.createElement('div');
+    avatar.className = 'agent-avatar';
+    avatar.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#EDEFF4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    chatLog.appendChild(row);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  function removeTyping() {
+    const row = document.getElementById('typing-row');
+    if (row) row.remove();
+  }
+
+  addBubble("Hi, I'm Raahi. Tell me what's going on, or tap the shield button anytime to instantly share your location.", 'agent');
+
+  async function sendMessage(text, options) {
+    options = options || {};
+    if (!text) return;
+
+    if (!options.silent) {
+      addBubble(text, 'user');
+    }
+    input.value = '';
+    sendBtn.disabled = true;
+
+    const isUnsafe = options.forceUnsafe || UNSAFE_PATTERNS.test(text);
+    if (isUnsafe) {
+      openSheet();
+      triggerAlert();
+    }
+
+    addTyping();
+    try {
+      const res = await fetch(CHAT_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatInput: text, sessionId })
+      });
+      const raw = await res.json().catch(() => null);
+      const data = Array.isArray(raw) ? raw[0] : raw;
+      const reply = (data && (data.output || data.text || data.reply)) ||
+        (isUnsafe ? "I've opened your location share below — tap the button to send it." : "I'm here with you. Can you tell me more?");
+      removeTyping();
+      addBubble(reply, 'agent');
+
+      const destination = extractRouteDestination(text);
+      if (destination) {
+        const safetyScore = extractSafetyScore(reply);
+        const bestTime = extractBestTimeToTravel(reply);
+        const wantsRoundTrip = ROUND_TRIP_PATTERNS.test(text);
+        handleRouteRequest(destination, safetyScore, bestTime, wantsRoundTrip);
+      }
+    } catch (err) {
+      removeTyping();
+      addBubble(
+        isUnsafe
+          ? "I've opened your location share below — tap the button to send it."
+          : "I couldn't reach the chat service right now, but the location button below always works.",
+        'agent'
+      );
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  // =========================================================================
+  // Route map (Leaflet + OpenStreetMap + OSRM)
+  // =========================================================================
+  let routeMap = null;
+  let routeLine = null;
+  let routeMarkers = [];
+
+  let currentTripType = 'oneway';
+  let currentRouteContext = null;
+
+  const ROUND_TRIP_PATTERNS = /\b(round trip|round-trip|there and back|and back|return trip|round journey)\b/i;
+
+  async function geocodeWithMappls(query, userPos) {
+    let url = `${MAPPLS_PROXY_URL}?address=${encodeURIComponent(query)}`;
+    if (userPos) {
+      url += `&lat=${userPos.lat}&lng=${userPos.lon}`;
+    }
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('Mappls geocoding request failed');
+    const data = await res.json();
+    const results = data && (data.copResults || data.results);
+    if (!results || !results.length) throw new Error('Mappls: destination not found');
+    const mapped = results.map(r => ({
+      lat: parseFloat(r.lat ?? r.latitude),
+      lon: parseFloat(r.lng ?? r.longitude),
+      label: r.formattedAddress || r.formatted_address || r.placeAddress || r.place_address || query,
+    })).filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lon));
+    if (!mapped.length) {
+      throw new Error('Mappls: response had no usable coordinates');
+    }
+    return mapped;
+  }
+
+  async function geocodeWithNominatim(query, userPos) {
+    let url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`;
+    if (userPos) {
+      const delta = 0.35;
+      const viewbox = [
+        userPos.lon - delta, userPos.lat + delta,
+        userPos.lon + delta, userPos.lat - delta
+      ].join(',');
+      url += `&viewbox=${viewbox}&bounded=0`;
+    }
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('Nominatim geocoding failed');
+    const results = await res.json();
+    if (!results || !results.length) throw new Error('Nominatim: destination not found');
+    return results.map(r => ({ lat: parseFloat(r.lat), lon: parseFloat(r.lon), label: r.display_name }));
+  }
+
+  async function geocodeDestination(query, userPos) {
+    let candidates = [];
+    try {
+      candidates = await geocodeWithMappls(query, userPos);
+    } catch (err) {
+      console.warn('Mappls geocoding failed, falling back to Nominatim:', err);
+    }
+    if (!candidates.length) {
+      candidates = await geocodeWithNominatim(query, userPos);
+    }
+
+    let best = candidates[0];
+    if (userPos) {
+      let bestDist = Infinity;
+      for (const c of candidates) {
+        const d = haversineKm(userPos.lat, userPos.lon, c.lat, c.lon);
+        if (d < bestDist) { bestDist = d; best = c; }
+      }
+    }
+    return best;
+  }
+
+  async function fetchOsrmRoute(from, to, roundTrip) {
+    const coordsPath = roundTrip
+      ? `${from.lon},${from.lat};${to.lon},${to.lat};${from.lon},${from.lat}`
+      : `${from.lon},${from.lat};${to.lon},${to.lat}`;
+    const url = `https://router.project-osrm.org/route/v1/driving/${coordsPath}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Routing failed');
+    const data = await res.json();
+    if (!data.routes || !data.routes.length) throw new Error('No route found');
+    const route = data.routes[0];
+    return {
+      coords: route.geometry.coordinates.map(([lon, lat]) => [lat, lon]),
+      distanceKm: route.distance / 1000,
+      durationMin: route.duration / 60,
+    };
+  }
+
+  function setSafetyCircle(score) {
+    const circle = document.getElementById('safety-circle');
+    const scoreEl = document.getElementById('safety-score');
+    circle.classList.remove('tier-good', 'tier-mid', 'tier-low', 'visible');
+    if (score === null || score === undefined) return;
+    scoreEl.textContent = Number.isInteger(score) ? score : score.toFixed(1);
+    circle.classList.add('visible', score >= 7 ? 'tier-good' : score >= 4 ? 'tier-mid' : 'tier-low');
+  }
+
+  function renderRouteMap(userPos, destPos, route) {
+    const mapEl = document.getElementById('route-map');
+    if (!routeMap) {
+      routeMap = L.map(mapEl, { attributionControl: true, zoomControl: true });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(routeMap);
+    }
+
+    if (routeLine) { routeMap.removeLayer(routeLine); routeLine = null; }
+    routeMarkers.forEach(m => routeMap.removeLayer(m));
+    routeMarkers = [];
+
+    const startIcon = L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border-radius:9999px;background:#8B7CF6;border:2px solid #fff;box-shadow:0 0 0 3px rgba(139,124,246,0.35);"></div>', iconSize: [14,14], iconAnchor: [7,7] });
+    const endIcon = L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border-radius:9999px;background:#FF4757;border:2px solid #fff;box-shadow:0 0 0 3px rgba(255,71,87,0.35);"></div>', iconSize: [14,14], iconAnchor: [7,7] });
+
+    routeMarkers.push(L.marker([userPos.latitude, userPos.longitude], { icon: startIcon }).addTo(routeMap));
+    routeMarkers.push(L.marker([destPos.lat, destPos.lon], { icon: endIcon }).addTo(routeMap));
+
+    routeLine = L.polyline(route.coords, { color: '#8B7CF6', weight: 4, opacity: 0.9 }).addTo(routeMap);
+    routeMap.fitBounds(routeLine.getBounds(), { padding: [28, 28] });
+
+    setTimeout(() => routeMap.invalidateSize(), 300);
+  }
+
+  async function handleRouteRequest(destinationQuery, safetyScore, bestTime, wantsRoundTrip) {
+    if (!('geolocation' in navigator)) return;
+
+    currentTripType = wantsRoundTrip ? 'roundtrip' : 'oneway';
+    setTripTypeUI(currentTripType);
+
+    openSheet();
+    document.getElementById('route-locating-note').textContent = `Finding your location and the route to ${destinationQuery}…`;
+    showSheetScreen('routeLocating');
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        let destPos;
+        try {
+          destPos = await geocodeDestination(destinationQuery, { lat: latitude, lon: longitude });
+        } catch (err) {
+          console.error('Raahi geocode error:', err);
+          retryAction = () => handleRouteRequest(destinationQuery, safetyScore, bestTime, wantsRoundTrip);
+          showError(`Couldn't find "${destinationQuery}". Try adding the city or area name to be more specific.`);
+          return;
+        }
+
+        currentRouteContext = {
+          origin: { latitude, longitude },
+          destPos,
+          destinationQuery,
+          safetyScore,
+          bestTime,
+        };
+
+        try {
+          await renderCurrentRoute();
+        } catch (err) {
+          console.error('Raahi routing error:', err);
+          retryAction = () => handleRouteRequest(destinationQuery, safetyScore, bestTime, wantsRoundTrip);
+          showError("Found the destination, but couldn't calculate a driving route to it. It may be unreachable by road, or the routing service is temporarily down.");
+        }
+      },
+      (geoErr) => {
+        retryAction = () => handleRouteRequest(destinationQuery, safetyScore, bestTime, wantsRoundTrip);
+        showError(
+          geoErr.code === 1
+            ? "Location access was denied. Enable it in your browser settings to continue."
+            : "Couldn't get your location. Try moving to an open area and retry."
+        );
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  }
+
+  async function getRoadIntelligence(payload) {
+    const response = await fetch(ROAD_INTEL_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error("Road Intelligence request failed");
+    return await response.json();
+  }
+
+  async function renderCurrentRoute() {
+    if (!currentRouteContext) return;
+
+    const { origin, destPos, destinationQuery, safetyScore, bestTime } = currentRouteContext;
+    const { latitude, longitude } = origin;
+    const isRoundTrip = currentTripType === "roundtrip";
+
+    const route = await fetchOsrmRoute({ lat: latitude, lon: longitude }, destPos, isRoundTrip);
+
+    document.getElementById("route-sub").textContent = isRoundTrip
+      ? `Round trip to ${destinationQuery} and back.`
+      : `Route to ${destinationQuery}.`;
+
+    document.getElementById("route-summary").style.display = "flex";
+    document.getElementById("route-distance-chip").textContent = `${route.distanceKm.toFixed(1)} km`;
+    document.getElementById("route-duration-chip").textContent = `${Math.round(route.durationMin)} min`;
+
+    document.getElementById("route-maps-link").href = isRoundTrip
+      ? `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${latitude},${longitude}&waypoints=${destPos.lat},${destPos.lon}`
+      : `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${destPos.lat},${destPos.lon}`;
+
+    const bestTimeNote = document.getElementById("best-time-note");
+    if (bestTime) {
+      bestTimeNote.textContent = `Best time to travel: ${bestTime}`;
+      bestTimeNote.style.display = "block";
+    } else {
+      bestTimeNote.style.display = "none";
+    }
+
+    showSheetScreen("routeMap");
+    renderRouteMap({ latitude, longitude }, destPos, route);
+    setSafetyCircle(safetyScore);
+
+    // Fetch Road Intelligence
+    try {
+      const roadData = await getRoadIntelligence({
+        origin: { lat: latitude, lon: longitude },
+        destination: { lat: destPos.lat, lon: destPos.lon },
+        destinationName: destinationQuery,
+        distance: route.distanceKm,
+        duration: route.durationMin
+      });
+      if (roadData) updateRoadIntelligence(roadData);
+    } catch (err) {
+      console.warn("n8n Road Intelligence unreachable, using direct weather fallback:", err);
+      // Fallback: Fetch direct weather and calculate basic score
+      try {
+        const weatherURL = `https://api.openweathermap.org/data/2.5/weather?lat=${destPos.lat}&lon=${destPos.lon}&appid=4d931ec88276cc1bdc8850967730679f&units=metric`;
+        const res = await fetch(weatherURL);
+        const weather = await res.json();
+
+        const temp = weather.main?.temp !== undefined ? `${Math.round(weather.main.temp)}°C` : "--";
+        const rainVal = weather.rain?.["1h"] ?? 0;
+        const windVal = weather.wind?.speed ?? 0;
+        const visibility = weather.visibility ? `${Math.round(weather.visibility / 1000)} km` : "--";
+        const condition = weather.weather?.[0]?.main ?? "--";
+
+        let score = 10;
+        if (rainVal > 0) score -= 1.5;
+        if (windVal > 8) score -= 1;
+        if (route.durationMin > 60) score -= 0.8;
+        if (route.distanceKm > 40) score -= 0.5;
+        score = Math.max(1, score).toFixed(1);
+
+        let reason = "Good weather and manageable road conditions.";
+        if (rainVal > 0) reason = "Rain expected along the route. Drive carefully.";
+        else if (windVal > 8) reason = "Strong winds reported. Exercise caution.";
+
+        updateRoadIntelligence({
+          score: score,
+          reason: reason,
+          weather: condition,
+          temperature: temp,
+          rain: `${rainVal} mm`,
+          visibility: visibility,
+          traffic: "Normal",
+          delay: "0-5 min",
+          route: "Recommended Route",
+          departure: bestTime || "Now"
+        });
+      } catch (fallbackErr) {
+        console.error("Weather fallback failed:", fallbackErr);
+      }
+    }
+  }
+
+  function setTripTypeUI(tripType) {
+    const onewayBtn = document.getElementById('trip-type-oneway');
+    const roundtripBtn = document.getElementById('trip-type-roundtrip');
+    const isRoundTrip = tripType === 'roundtrip';
+    onewayBtn.classList.toggle('active', !isRoundTrip);
+    onewayBtn.setAttribute('aria-pressed', String(!isRoundTrip));
+    roundtripBtn.classList.toggle('active', isRoundTrip);
+    roundtripBtn.setAttribute('aria-pressed', String(isRoundTrip));
+  }
+
+  document.getElementById('trip-type-oneway').addEventListener('click', () => {
+    if (currentTripType === 'oneway') return;
+    currentTripType = 'oneway';
+    setTripTypeUI('oneway');
+    renderCurrentRoute().catch((err) => {
+      console.error('Raahi routing error:', err);
+      showError("Couldn't recalculate the route. Check your connection and try again.");
+    });
+  });
+
+  document.getElementById('trip-type-roundtrip').addEventListener('click', () => {
+    if (currentTripType === 'roundtrip') return;
+    currentTripType = 'roundtrip';
+    setTripTypeUI('roundtrip');
+    renderCurrentRoute().catch((err) => {
+      console.error('Raahi routing error:', err);
+      showError("Couldn't recalculate the route. Check your connection and try again.");
+    });
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    sendMessage(text);
+  });
+
+  document.querySelectorAll('.quick-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const text = chip.dataset.text;
+      const forceUnsafe = chip.dataset.emergency === 'true';
+      addBubble(text, 'user');
+      sendMessage(text, { silent: true, forceUnsafe });
+    });
+  });
+
+  // =========================================================================
+  // Sheet + geolocation flow
+  // =========================================================================
+  const sheet = document.getElementById('sheet');
+  const backdrop = document.getElementById('sheet-backdrop');
+  const sheetScreens = {
+    locating: document.getElementById('screen-locating'),
+    result: document.getElementById('screen-result'),
+    error: document.getElementById('screen-error'),
+    routeLocating: document.getElementById('screen-route-locating'),
+    routeMap: document.getElementById('screen-route-map'),
+  };
+
+  function showSheetScreen(name) {
+    Object.values(sheetScreens).forEach(s => s.classList.remove('active'));
+    sheetScreens[name].classList.add('active');
+  }
+
+  function openSheet() {
+    sheet.classList.add('active');
+    backdrop.classList.add('active');
+  }
+
+  function closeSheet() {
+    sheet.classList.remove('active');
+    backdrop.classList.remove('active');
+  }
+
+  let sosArmed = false;
+  let sosArmTimeout = null;
+  const fabBtn = document.getElementById('fab-btn');
+  const fabConfirmLabel = document.getElementById('fab-confirm-label');
+  const SOS_CONFIRM_WINDOW_MS = 2500;
+
+  function disarmSos() {
+    sosArmed = false;
+    clearTimeout(sosArmTimeout);
+    fabBtn.classList.remove('armed');
+    fabConfirmLabel.classList.remove('visible');
+  }
+
+  fabBtn.addEventListener('click', () => {
+    if (!sosArmed) {
+      sosArmed = true;
+      fabBtn.classList.add('armed');
+      fabConfirmLabel.classList.add('visible');
+      sosArmTimeout = setTimeout(disarmSos, SOS_CONFIRM_WINDOW_MS);
+      return;
+    }
+    disarmSos();
+    openSheet();
+    triggerAlert();
+  });
+
+  document.getElementById('sheet-close').addEventListener('click', closeSheet);
+  backdrop.addEventListener('click', closeSheet);
+  document.getElementById('retry-btn').addEventListener('click', () => { if (retryAction) retryAction(); });
+  document.getElementById('search-again-btn').addEventListener('click', closeSheet);
+  document.getElementById('route-done-btn').addEventListener('click', closeSheet);
+
+  function haversineKm(lat1, lon1, lat2, lon2) {
+    const toRad = d => d * Math.PI / 180;
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  let userCoords = null;
+  let retryAction = null;
+  let safetyTimeout = null;
+
+  function triggerAlert() {
+    retryAction = triggerAlert;
+    if (!('geolocation' in navigator)) {
+      showError("This browser can't access location. Try a different browser.");
+      return;
+    }
+
+    showSheetScreen('locating');
+
+    const locatingNote = document.querySelector('#screen-locating .muted-note');
+    const defaultLocatingNote = locatingNote ? locatingNote.textContent : '';
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then((status) => {
+        if (status.state === 'prompt' && locatingNote) {
+          locatingNote.textContent = "Waiting for you to allow location access…";
+        }
+      }).catch(() => {});
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        if (locatingNote) locatingNote.textContent = defaultLocatingNote;
+        const { latitude, longitude, accuracy } = pos.coords;
+        userCoords = { latitude, longitude, accuracy };
+
+        safetyTimeout = setTimeout(() => {
+          showError("The search is taking too long. Check your connection and try again.");
+        }, 25000);
+
+        try {
+          const res = await fetch(WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latitude, longitude, accuracy })
+          });
+
+          clearTimeout(safetyTimeout);
+          if (!res.ok) throw new Error('Server responded with ' + res.status);
+
+          const raw = await res.json();
+          const data = Array.isArray(raw) ? raw[0] : raw;
+          const hasStation = data && data.station_lat !== "" && data.station_lat !== undefined && data.station_lat !== null;
+
+          let distanceKm = null;
+          if (hasStation) {
+            distanceKm = haversineKm(latitude, longitude, parseFloat(data.station_lat), parseFloat(data.station_lon));
+          }
+
+          renderResult({
+            found: hasStation,
+            stationName: (data && data.station_name) || "Nearest station",
+            mapsLink: data && data.maps_link,
+            distanceKm
+          });
+        } catch (err) {
+          clearTimeout(safetyTimeout);
+          showError("Couldn't reach the safety network. Check your connection and try again.");
+        }
+      },
+      (geoErr) => {
+        showError(
+          geoErr.code === 1
+            ? "Location access was denied. Enable it in your browser settings to continue."
+            : "Couldn't get your location. Try moving to an open area and retry."
+        );
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  }
+
+  function showError(msg) {
+    document.getElementById('error-message').textContent = msg;
+    showSheetScreen('error');
+  }
+
+  function renderResult({ found, stationName, mapsLink, distanceKm }) {
+    const ownMapsLink = userCoords
+      ? `https://www.google.com/maps/search/?api=1&query=${userCoords.latitude},${userCoords.longitude}`
+      : '#';
+
+    const shareTarget = found ? mapsLink : ownMapsLink;
+    const whatsappText = found
+      ? `I need help. Nearest police station: ${stationName}. Location: ${shareTarget}`
+      : `I need help. My location: ${shareTarget}`;
+
+    document.getElementById('badge-label').textContent = found ? 'Nearest station found' : 'No tagged station nearby';
+    document.getElementById('result-title').textContent = found ? stationName : 'Your location is ready to share';
+    document.getElementById('result-desc').textContent = found
+      ? 'This data comes from OpenStreetMap and may not always be current.'
+      : 'OpenStreetMap has no police station tagged within range — but your live location is ready to send to someone who can help.';
+
+    const badgeWrap = document.getElementById('badge-icon-wrap');
+    const badgeSvg = badgeWrap.querySelector('svg');
+    const distChip = document.getElementById('distance-chip');
+    const mapsBtn = document.getElementById('maps-link');
+    const waBtn = document.getElementById('whatsapp-link');
+
+    if (found) {
+      badgeWrap.style.background = 'var(--success-dim)';
+      badgeSvg.setAttribute('stroke', 'var(--success)');
+      waBtn.className = 'action-btn primary success';
+    } else {
+      badgeWrap.style.background = 'var(--alert-dim)';
+      badgeSvg.setAttribute('stroke', 'var(--alert)');
+      waBtn.className = 'action-btn primary alertbg';
+    }
+
+    if (found && distanceKm !== null) {
+      document.getElementById('distance-value').textContent = distanceKm.toFixed(1);
+      distChip.style.display = 'inline-flex';
+    } else {
+      distChip.style.display = 'none';
+    }
+
+    mapsBtn.href = shareTarget;
+    waBtn.href = `https://wa.me/?text=${encodeURIComponent(whatsappText)}`;
+
+    showSheetScreen('result');
+  }
+
+  // =========================================================================
+  // Road Intelligence Drawer Control
+  // =========================================================================
+  const roadDrawer = document.getElementById("roadDrawer");
+  const roadToggle = document.getElementById("roadDrawerToggle");
+  const drawerClose = document.getElementById("drawerClose");
+
+  if (roadToggle) {
+    roadToggle.addEventListener("click", () => {
+      roadDrawer.classList.add("active");
+    });
+  }
+
+  if (drawerClose) {
+    drawerClose.addEventListener("click", () => {
+      roadDrawer.classList.remove("active");
+    });
+  }
+
+  function updateRoadIntelligence(data) {
+    if (!data) return;
+    document.getElementById("routeScore").textContent = data.score ?? "--";
+    document.getElementById("routeReason").textContent = data.reason ?? "No recommendation";
+    document.getElementById("weatherCondition").textContent = data.weather ?? "--";
+    document.getElementById("weatherTemp").textContent = data.temperature ?? "--";
+    document.getElementById("rainChance").textContent = data.rain ?? "--";
+    document.getElementById("visibilityValue").textContent = data.visibility ?? "--";
+    document.getElementById("trafficStatusDrawer").textContent = data.traffic ?? "--";
+    document.getElementById("trafficDelayDrawer").textContent = data.delay ?? "--";
+    document.getElementById("recommendedRoute").textContent = data.route ?? "--";
+    document.getElementById("bestDeparture").textContent = data.departure ?? "--";
+  }
+
+  // Initial Demo Data
+  updateRoadIntelligence({
+    score: 9.4,
+    reason: "Route A is safest today due to lower traffic and clear weather.",
+    weather: "Cloudy",
+    temperature: "29°C",
+    rain: "12%",
+    visibility: "9 km",
+    traffic: "Moderate",
+    delay: "4 min",
+    route: "Route A",
+    departure: "Leave within 20 minutes"
+  });
+</script>
+</body>
+</html>

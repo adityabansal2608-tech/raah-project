@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Share My Location</title>
+</head>
+
+<body>
+
+<h2>Emergency Location Sharing</h2>
+
+<button onclick="shareLocation()">
+Share My Live Location
+</button>
+
+<p id="status"></p>
+
+<script>
+
+function shareLocation(){
+
+if(!navigator.geolocation){
+document.getElementById("status").innerHTML="Location not supported";
+return;
+}
+
+navigator.geolocation.getCurrentPosition(function(position){
+
+fetch("https://aditya260813.app.n8n.cloud/webhook-test/4e445912-d2e3-429b-a43c-4692da887939",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+
+latitude:position.coords.latitude,
+
+longitude:position.coords.longitude,
+
+accuracy:position.coords.accuracy
+
+})
+
+})
+
+.then(r=>r.text())
+
+.then(data=>{
+document.getElementById("status").innerHTML="Location Shared Successfully";
+});
+
+});
+
+}
+
+</script>
+
+</body>
+
+</html>
